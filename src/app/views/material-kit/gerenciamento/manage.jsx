@@ -13,15 +13,17 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
   CircularProgress,
   Snackbar,
   Alert,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import styled from "@mui/material/styles/styled";
 import { Breadcrumb, SimpleCard } from "app/components";
-import userService from "__api__/db/user";
+import cidadeService from "__api__/cidadeService";
+import estadoService from "__api__/estadoService";
 
 // Styled Components
 const AppButtonRoot = styled("div")(({ theme }) => ({
@@ -32,15 +34,21 @@ const AppButtonRoot = styled("div")(({ theme }) => ({
   },
 }));
 
-export default function AppButton() {
+export default function GerenciamentoCidades() {
   const [data, setData] = useState([]);
-  const [search, setSearch] = useState("");
-  const [openDialog, setOpenDialog] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
-  const [deactivationDate, setDeactivationDate] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
+  const [estados, setEstados] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    nome_cidade: "",
+    preco_unit_valor: "",
+    preco_unit_peso: "",
+    id_estado: "",
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [selectedCityId, setSelectedCityId] = useState(null);
+  const [openConfirmDialog, setOpenConfirmDialog] = useState(false); // Controle do dialog
+  const [cityToDelete, setCityToDelete] = useState(null);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -49,100 +57,132 @@ export default function AppButton() {
     severity: "success",
   });
 
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  const handleSnackbarClose = () => setSnackbar({ ...snackbar, open: false });
 
-  // Fetch Data on Page Change
   useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
+    fetchCidades();
+    fetchEstados();
+  }, []);
 
-  // Fetch Users
-  const fetchData = async (page) => {
+  const fetchCidades = async () => {
     setLoading(true);
     try {
-      const response = await userService.getCustomers(page);
-      if (response?.data && Array.isArray(response.data)) {
-        setData(response.data);
-        setLastPage(response.last_page || 1);
-      } else {
-        setData([]);
-      }
+      const cidades = await cidadeService.findAll();
+      setData(cidades);
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      setData([]);
+      setSnackbar({
+        open: true,
+        message: "Erro ao carregar cidades.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
-    setSearch(e.target.value);
+  const fetchEstados = async () => {
+    try {
+      const estados = await estadoService.findAll();
+      setEstados(estados);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Erro ao carregar estados.",
+        severity: "error",
+      });
+    }
   };
 
-  const handleToggleActive = async () => {
-    setLoading(true);
+  const handleOpenDialog = (cidade = null) => {
+    if (cidade) {
+      setEditMode(true);
+      setSelectedCityId(cidade.id_cidade);
+      setFormData({
+        nome_cidade: cidade.nome_cidade,
+        preco_unit_valor: cidade.preco_unit_valor,
+        preco_unit_peso: cidade.preco_unit_peso,
+        id_estado: cidade.id_estado,
+      });
+    } else {
+      setEditMode(false);
+      setSelectedCityId(null);
+      setFormData({
+        nome_cidade: "",
+        preco_unit_valor: "",
+        preco_unit_peso: "",
+        id_estado: "",
+      });
+    }
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => setOpenDialog(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleSave = async () => {
     try {
-      const selectedUser = data.find((user) => user.customer_id === selectedUserId);
-
-      if (!selectedUser) {
-        throw new Error("Cliente não encontrado.");
-      }
-
-      if (selectedUser.deleted_at) {
-        await userService.reactivateClient(selectedUser.customer_id);
+      if (editMode) {
+        await cidadeService.update(selectedCityId, formData);
         setSnackbar({
           open: true,
-          message: "Usuário ativado com sucesso.",
+          message: "Cidade atualizada com sucesso!",
           severity: "success",
         });
       } else {
-        if (!deactivationDate) {
-          throw new Error("Data de desativação é necessária para desativar um cliente.");
-        }
-        await userService.deactivateClient(selectedUser.customer_id, deactivationDate);
+        await cidadeService.create(formData);
         setSnackbar({
           open: true,
-          message: "Usuário desativado com sucesso.",
+          message: "Cidade cadastrada com sucesso!",
           severity: "success",
         });
       }
-
-      fetchData(currentPage);
+      fetchCidades();
     } catch (error) {
-      console.error("Erro ao alterar status do cliente:", error);
       setSnackbar({
         open: true,
-        message: "Erro ao alterar status do cliente.",
+        message: "Erro ao salvar cidade.",
         severity: "error",
       });
     } finally {
       setOpenDialog(false);
-      setDeactivationDate("");
-      setLoading(false);
     }
   };
 
-  const openActivationDialog = (id) => {
-    setSelectedUserId(id);
-    setOpenDialog(true);
+  const handleOpenConfirmDialog = (id) => {
+    setCityToDelete(id);
+    setOpenConfirmDialog(true);
   };
 
-  const copyToClipboard = (token) => {
-    navigator.clipboard.writeText(token);
-    setSnackbar({
-      open: true,
-      message: "Token copiado para a área de transferência.",
-      severity: "info",
-    });
+  const handleConfirmDelete = async () => {
+    if (cityToDelete) {
+      try {
+        await cidadeService.delete(cityToDelete);
+        setSnackbar({
+          open: true,
+          message: "Cidade excluída com sucesso!",
+          severity: "success",
+        });
+        fetchCidades();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.error || "Erro ao excluir cidade.",
+          severity: "error",
+        });
+      } finally {
+        handleCloseConfirmDialog();
+      }
+    }
   };
 
-  const filteredData = Array.isArray(data)
-    ? data.filter((user) =>
-      user.customer_id.toString().toLowerCase().includes(search.toLowerCase())
-    )
-    : [];
+  const handleCloseConfirmDialog = () => {
+    setCityToDelete(null);
+    setOpenConfirmDialog(false);
+  };
 
   return (
     <AppButtonRoot>
@@ -150,22 +190,12 @@ export default function AppButton() {
         <Breadcrumb
           routeSegments={[
             { name: "Ferramentas", path: "/material" },
-            { name: "Gerenciamento" },
+            { name: "Gerenciamento de Cidades" },
           ]}
         />
       </Box>
 
-      <SimpleCard title="Gerenciamento de Usuários">
-        <Box mb={2}>
-          <TextField
-            label="Pesquisar por Customer ID"
-            variant="outlined"
-            fullWidth
-            value={search}
-            onChange={handleSearch}
-          />
-        </Box>
-
+      <SimpleCard title="Gerenciamento de Cidades">
         {loading ? (
           <Box display="flex" justifyContent="center" my={4}>
             <CircularProgress />
@@ -175,35 +205,39 @@ export default function AppButton() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Customer ID</TableCell>
-                  <TableCell>Token</TableCell>
-                  <TableCell>Criado em</TableCell>
-                  <TableCell>Última Atualização</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Ação</TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Nome da Cidade</TableCell>
+                  <TableCell>Preço por Valor</TableCell>
+                  <TableCell>Preço por Peso</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.customer_id}</TableCell>
+                {data.map((cidade) => (
+                  <TableRow key={cidade.id_cidade}>
+                    <TableCell>{cidade.id_cidade}</TableCell>
+                    <TableCell>{cidade.nome_cidade}</TableCell>
+                    <TableCell>{cidade.preco_unit_valor}</TableCell>
+                    <TableCell>{cidade.preco_unit_peso}</TableCell>
                     <TableCell>
-                      {user.token ? `${user.token.slice(0, 10)}...` : "vazio"}
+                      {estados.find((e) => e.id_estado === cidade.id_estado)?.nome_estado || "Desconhecido"}
                     </TableCell>
-                    <TableCell>
-                      {new Date(user.created_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.updated_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell>{user.type_name}</TableCell>
                     <TableCell>
                       <Button
                         variant="contained"
-                        color={user.deleted_at ? "primary" : "secondary"}
-                        onClick={() => openActivationDialog(user.customer_id)}
+                        color="primary"
+                        onClick={() => handleOpenDialog(cidade)}
                       >
-                        {user.deleted_at ? "Ativar" : "Desativar"}
+                        Editar
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => handleOpenConfirmDialog(cidade.id_cidade)}
+                        style={{ marginLeft: "10px" }}
+                      >
+                        Excluir
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -213,56 +247,82 @@ export default function AppButton() {
           </TableContainer>
         )}
 
-        <Box display="flex" justifyContent="center" mt={2}>
-          <Button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-          >
-            Anterior
-          </Button>
-          <Box mx={2}>{`Página ${currentPage} de ${lastPage}`}</Box>
-          <Button
-            disabled={currentPage === lastPage}
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, lastPage))
-            }
-          >
-            Próxima
+        <Box mt={2}>
+          <Button variant="contained" color="primary" onClick={() => handleOpenDialog()}>
+            Adicionar Cidade
           </Button>
         </Box>
       </SimpleCard>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>
-          {data.find((user) => user.customer_id === selectedUserId)?.deleted_at
-            ? "Ativar Usuário"
-            : "Desativar Usuário"}
-        </DialogTitle>
+      {/* Dialog para confirmar exclusão */}
+      <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
-          {data.find((user) => user.customer_id === selectedUserId)?.deleted_at ? (
-            <DialogContentText>
-              Tem certeza que deseja ativar este usuário?
-            </DialogContentText>
-          ) : (
-            <>
-              <DialogContentText>
-                Insira a data para desativação do usuário:
-              </DialogContentText>
-              <TextField
-                type="date"
-                fullWidth
-                value={deactivationDate}
-                onChange={(e) => setDeactivationDate(e.target.value)}
-              />
-            </>
-          )}
+          Tem certeza que deseja excluir esta cidade? Esta ação não pode ser desfeita.
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} color="primary">
+          <Button onClick={handleCloseConfirmDialog} color="primary">
             Cancelar
           </Button>
-          <Button onClick={handleToggleActive} color="secondary" autoFocus>
+          <Button onClick={handleConfirmDelete} color="secondary">
             Confirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para editar ou cadastrar cidade */}
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>{editMode ? "Editar Cidade" : "Cadastrar Cidade"}</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Nome da Cidade"
+            name="nome_cidade"
+            value={formData.nome_cidade}
+            onChange={handleChange}
+            fullWidth
+            margin="normal"
+          />
+          <TextField
+            label="Preço por Valor"
+            name="preco_unit_valor"
+            value={formData.preco_unit_valor}
+            onChange={handleChange}
+            fullWidth
+            margin="normal"
+            type="number"
+          />
+          <TextField
+            label="Preço por Peso"
+            name="preco_unit_peso"
+            value={formData.preco_unit_peso}
+            onChange={handleChange}
+            fullWidth
+            margin="normal"
+            type="number"
+          />
+          <Select
+            name="id_estado"
+            value={formData.id_estado}
+            onChange={handleChange}
+            fullWidth
+            displayEmpty
+          >
+            <MenuItem value="">
+              <em>Selecione um estado</em>
+            </MenuItem>
+            {estados.map((estado) => (
+              <MenuItem key={estado.id_estado} value={estado.id_estado}>
+                {estado.nome_estado}
+              </MenuItem>
+            ))}
+          </Select>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} color="secondary">
+            {editMode ? "Salvar Alterações" : "Cadastrar"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -271,7 +331,7 @@ export default function AppButton() {
         open={snackbar.open}
         autoHideDuration={5000}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }} // Altere "horizontal" para "right"
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
           {snackbar.message}

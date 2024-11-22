@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("isAuthenticated", "true");
 
       dispatch({ type: "LOGIN" });
-      navigate("/dashboard/default");
+      navigate("/material/customers");
     } catch (error) {
       console.error("Erro ao fazer login:", error);
       throw error;

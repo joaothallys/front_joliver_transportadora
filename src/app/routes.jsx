@@ -13,9 +13,10 @@ import materialRoutes from "app/views/material-kit/MaterialRoutes";
 const AppEchart = Loadable(lazy(() => import("app/views/charts/echarts/AppEchart")));
 // DASHBOARD PAGE
 const Analytics = Loadable(lazy(() => import("app/views/dashboard/Analytics")));
+const AppAutoComplete = Loadable(lazy(() => import("app/views/material-kit/auto-complete/AppAutoComplete")));
 
 const routes = [
-  { path: "/", element: <Navigate to="dashboard/default" /> },
+  { path: "/", element: <Navigate to="material/customers" /> },
   {
     element: (
       <AuthGuard>
@@ -25,7 +26,7 @@ const routes = [
     children: [
       ...materialRoutes,
       // dashboard route
-      { path: "/dashboard/default", element: <Analytics />, auth: authRoles.admin },
+      { path: "/material/customers", element: <AppAutoComplete />, auth: authRoles.admin },
       // e-chart route
       { path: "/charts/echarts", element: <AppEchart />, auth: authRoles.editor }
     ]
