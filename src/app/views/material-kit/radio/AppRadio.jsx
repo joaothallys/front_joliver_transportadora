@@ -19,8 +19,9 @@ import {
   Alert,
   Select,
   MenuItem,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-import { InputLabel, FormControl } from "@mui/material";
 import styled from "@mui/material/styles/styled";
 import { Breadcrumb, SimpleCard } from "app/components";
 import pessoaJuridicaService from "__api__/pessoaJuridicaService";
@@ -48,6 +49,7 @@ export default function GerenciamentoPessoaJuridica() {
     inscricao_estadual: "",
     id_cliente: "",
     id_representante: "",
+    nome_representante: "",
   });
   const [editMode, setEditMode] = useState(false);
   const [selectedPJId, setSelectedPJId] = useState(null);
@@ -122,6 +124,7 @@ export default function GerenciamentoPessoaJuridica() {
         inscricao_estadual: pj.inscricao_estadual,
         id_cliente: pj.id_cliente,
         id_representante: pj.id_representante,
+        nome_representante: pj.nome_representante,
       });
     } else {
       setEditMode(false);
@@ -132,6 +135,7 @@ export default function GerenciamentoPessoaJuridica() {
         inscricao_estadual: "",
         id_cliente: "",
         id_representante: "",
+        nome_representante: "",
       });
     }
     setOpenDialog(true);
@@ -150,14 +154,26 @@ export default function GerenciamentoPessoaJuridica() {
     try {
       if (editMode) {
         await pessoaJuridicaService.update(selectedPJId, formData);
-        setSnackbar({ open: true, message: "Pessoa Jurídica atualizada com sucesso!", severity: "success" });
+        setSnackbar({
+          open: true,
+          message: "Pessoa Jurídica atualizada com sucesso!",
+          severity: "success",
+        });
       } else {
         await pessoaJuridicaService.create(formData);
-        setSnackbar({ open: true, message: "Pessoa Jurídica cadastrada com sucesso!", severity: "success" });
+        setSnackbar({
+          open: true,
+          message: "Pessoa Jurídica cadastrada com sucesso!",
+          severity: "success",
+        });
       }
       fetchPJs();
     } catch (error) {
-      setSnackbar({ open: true, message: "Erro ao salvar pessoa jurídica.", severity: "error" });
+      setSnackbar({
+        open: true,
+        message: "Erro ao salvar pessoa jurídica.",
+        severity: "error",
+      });
     } finally {
       setOpenDialog(false);
     }
@@ -183,7 +199,11 @@ export default function GerenciamentoPessoaJuridica() {
   const handleDelete = async (id) => {
     try {
       await pessoaJuridicaService.delete(id);
-      setSnackbar({ open: true, message: "Pessoa Jurídica excluída com sucesso!", severity: "success" });
+      setSnackbar({
+        open: true,
+        message: "Pessoa Jurídica excluída com sucesso!",
+        severity: "success",
+      });
       fetchPJs();
     } catch (error) {
       setSnackbar({
@@ -198,7 +218,10 @@ export default function GerenciamentoPessoaJuridica() {
     <Container>
       <Box className="breadcrumb">
         <Breadcrumb
-          routeSegments={[{ name: "Ferramentas", path: "/pj" }, { name: "Pessoa Jurídica" }]}
+          routeSegments={[
+            { name: "Ferramentas", path: "/pj" },
+            { name: "Pessoa Jurídica" },
+          ]}
         />
       </Box>
 
@@ -222,54 +245,57 @@ export default function GerenciamentoPessoaJuridica() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.map((pj) => {
-                  const cliente = clientes.find((c) => c.id_cliente === pj.id_cliente);
-                  const representante = representantes.find(
-                    (r) => r.id_cliente === pj.id_representante
-                  );
-
-                  return (
-                    <TableRow key={pj.id_cliente}>
-                      <TableCell>{pj.id_cliente}</TableCell>
-                      <TableCell>{pj.razao_social}</TableCell>
-                      <TableCell>{pj.CNPJ}</TableCell>
-                      <TableCell>{pj.inscricao_estadual}</TableCell>
-                      <TableCell>{cliente?.nome || "Cliente não encontrado"}</TableCell>
-                      <TableCell>{representante?.nome || "Representante não encontrado"}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleOpenDialog(pj)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => handleOpenConfirmDialog(pj.id_cliente)}
-                          style={{ marginLeft: "10px" }}
-                        >
-                          Excluir
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {data.map((pj) => (
+                  <TableRow key={pj.id_cliente}>
+                    <TableCell>{pj.id_cliente}</TableCell>
+                    <TableCell>{pj.razao_social}</TableCell>
+                    <TableCell>{pj.CNPJ}</TableCell>
+                    <TableCell>{pj.inscricao_estadual}</TableCell>
+                    <TableCell>{clientes.find((c) => c.id_cliente === pj.id_cliente)?.nome || pj.id_cliente}</TableCell>
+                    <TableCell>
+                      {representantes.find((r) => r.id_cliente === pj.id_representante)?.nome ||
+                        pj.nome_representante}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handleOpenDialog(pj)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => handleOpenConfirmDialog(pj.id_cliente)}
+                        style={{ marginLeft: "10px" }}
+                      >
+                        Excluir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
         )}
 
         <Box mt={2}>
-          <Button variant="contained" color="primary" onClick={() => handleOpenDialog()}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => handleOpenDialog()}
+          >
             Adicionar Pessoa Jurídica
           </Button>
         </Box>
       </SimpleCard>
 
+      {/* Modal de Adicionar/Editar */}
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{editMode ? "Editar Pessoa Jurídica" : "Cadastrar Pessoa Jurídica"}</DialogTitle>
+        <DialogTitle>
+          {editMode ? "Editar Pessoa Jurídica" : "Cadastrar Pessoa Jurídica"}
+        </DialogTitle>
         <DialogContent>
           <TextField
             label="Razão Social"
@@ -325,12 +351,23 @@ export default function GerenciamentoPessoaJuridica() {
                 <em>Selecione um representante</em>
               </MenuItem>
               {representantes.map((representante) => (
-                <MenuItem key={representante.id_cliente} value={representante.id_cliente}>
+                <MenuItem
+                  key={representante.id_cliente}
+                  value={representante.id_cliente}
+                >
                   {representante.nome}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+          <TextField
+            label="Nome do Representante"
+            name="nome_representante"
+            value={formData.nome_representante}
+            onChange={handleChange}
+            fullWidth
+            margin="normal"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="primary">
@@ -342,9 +379,12 @@ export default function GerenciamentoPessoaJuridica() {
         </DialogActions>
       </Dialog>
 
+      {/* Modal de Confirmação para Exclusão */}
       <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
         <DialogTitle>Confirmar Exclusão</DialogTitle>
-        <DialogContent>Tem certeza que deseja excluir esta pessoa jurídica?</DialogContent>
+        <DialogContent>
+          Tem certeza que deseja excluir esta pessoa jurídica?
+        </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseConfirmDialog} color="primary">
             Cancelar
@@ -355,6 +395,7 @@ export default function GerenciamentoPessoaJuridica() {
         </DialogActions>
       </Dialog>
 
+      {/* Snackbar para Notificações */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={5000}
