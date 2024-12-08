@@ -16,7 +16,7 @@ const navigations = [
       //{ name: "Switch", path: "/material/switch", iconText: "S" },
       { name: "Frete", path: "/material/frete", iconText: "F" },
       { name: "Funcionarios", path: "/material/employee", iconText: "F" },
-      { name: "Table", path: "/material/table", iconText: "T" }
+      { name: "Dashboard", path: "/material/table", iconText: "D" }
     ]
   },
   // {
